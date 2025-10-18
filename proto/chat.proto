@@ -1,0 +1,262 @@
+syntax = "proto3";
+
+package chat;
+
+option go_package = "github.com/timurkaev/grpc-chat/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// Auth Service
+service AuthService {
+    rpc Register(RegisterRequest) returns (AuthResponse);
+    rpc Login(LoginRequest) returns (AuthResponse);
+    rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+}
+
+message RegisterRequest {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+}
+
+message LoginRequest {
+    string email = 1;
+    string password = 1;
+}
+
+message RefreshTokenRequest {
+    string refresh_token = 1;
+}
+
+message AuthResponse {
+    string access_token = 1;
+    string refresh_token = 2;
+    User user = 3;
+}
+
+
+// User Service
+service UserService {
+    rpc GetUser(GetUserRequest) returns (User);
+    rpc UpdateUser(UpdateUserRequest) returns (User);
+    rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+}
+
+message GetUserRequest {
+    string user_id = 1;
+}
+
+message UpdateUserRequest {
+    string user_id = 1;
+    string username = 2;
+    string avatar_url = 3;
+    string bio = 4;
+}
+
+message SearchUsersRequest {
+    string query = 1;
+    string limit = 2;
+    string offset = 3;
+}
+
+message SearchUsersResponse {
+    repeated User users = 1;
+    int32 total = 2;
+}
+
+message User {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+    string avatar_url = 4;
+    string bio = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp last_seen = 7;
+}
+
+
+// Room Service
+service RoomService {
+    rpc CreateRoom(CreateRoomRequest) returns (Room);
+    rpc GetRoom(GetRoomRequest) returns (Room);
+    rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+    rpc ListRoom(JoinRoomRequest) returns (JoinRoomResponse);
+    rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+    rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
+    rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+}
+
+message CreateRoomRequest {
+    string name = 1;
+    string description = 2;
+    RoomType type = 3;
+    repeated string member_ids = 4;
+}
+
+message GetRoomRequest {
+    string room_id = 1;
+}
+
+message ListRoomsRequest {
+    string user_id = 1;
+    int32 limit = 2;
+    int32 offset = 3;
+}
+
+message ListRoomsResponse {
+    repeated Room rooms = 1;
+    int32 total = 2;
+}
+
+message JoinRoomRequest {
+    string room_id = 1;
+    string user_id = 2;
+}
+
+message JoinRoomResponse {
+    bool success = 1;
+}
+
+message LeaveRoomRequest {
+    string room_id = 1;
+    string user_id = 2;
+}
+
+message LeaveRoomResponse {
+    bool success = 1;
+}
+
+message AddMemberRequest {
+    string room_id = 1;
+    string user_id = 2;
+    string member_id = 3;
+}
+
+message AddMemberResponse {
+    bool success = 1;
+}
+
+message RemoveMemberRequest {
+    string room_id = 1;
+    string user_id = 2;
+    string member_id = 2;
+}
+
+message RemoveMemberResponse {
+    bool success = 1;
+}
+
+message Room {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    RoomType type = 4;
+    string created_id = 5;
+    repeated string member_ids = 6;
+    google.protobuf.Timestamp created_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+
+enum RoomType {
+    DIRECT = 0;
+    GROUP = 1;
+    CHANNER = 2;
+}
+
+
+// Chat Service
+service ChatService {
+    rpc SendMessage(SendMessageRequest) returns (Message);
+    rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+    rpc EditMessage(EditMessageRequest) returns (Message);
+    rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+    rpc StreamMessage(StreamMessageRequest) returns (stream Message);
+    rpc TypingIndicator(stream TypingRequest) returns (stream TypingResponse);
+}
+
+message SendMessageRequest {
+    string rood_id = 1;
+    string sender_id = 2;
+    string content = 3;
+    MessageType type = 4;
+    string reply_to_id = 5;
+    repeated string attachment_urls = 6;
+}
+
+message GetMessageRequest {
+    string room_id = 1;
+    int32 limit = 2;
+    int32 offset = 3;
+    google.protobuf.Timestamp before = 4;
+}
+
+message GetMessageResponse {
+    repeated Message messages = 1;
+    int32 total = 2;
+    bool has_more = 3;
+}
+
+message EditMessageRequest {
+    string message_id = 1;
+    string user_id = 2;
+    string content = 3;
+}
+
+message DeleteMessageRequest {
+    string message_id = 1;
+    string user_id = 2;
+}
+
+
+message DeleteMessageResponse {
+    bool success = 1;
+}
+
+message StreamMessageRequest {
+    string room_id = 1;
+    string user_id = 2;
+}
+
+message TypingRequest {
+    string room_id = 1;
+    string user_id = 2;
+    bool is_typing = 3;
+}
+
+message TypingResponse {
+    string room_id = 1;
+    string user_id = 2;
+    string username = 3;
+    bool is_typing = 4;
+}
+
+message MarkAsReadRequest {
+    string room_id = 1;
+    string user_id = 2;
+    string message_id = 3;
+}
+
+message MarkAsReadResponse {
+    bool success = 1;
+}
+
+message Messages {
+    string id = 1;
+    string room_id = 2;
+    string sender_id = 3;
+    string content = 4;
+    MessageType type = 5;
+    string reply_to_id = 6;
+    repeated string attachment_urls = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+    bool is_edited = 10;
+    repeated string read_by = 11;
+}
+
+enum MessageType {
+    TEXT = 0;
+    IMAGE = 1;
+    FILE = 2;
+    SYSTEM = 3;
+}
