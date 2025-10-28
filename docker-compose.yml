@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: grpc-chat-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: grpc-chat-redis
+    command: >
+      sh -c "
+      if [ -n \"${REDIS_PASSWORD}\" ]; then
+        redis-server --requirepass ${REDIS_PASSWORD}
+      else
+        redis-server
+      fi
+      "
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: >
+        sh -c "
+        if [ -n \"${REDIS_PASSWORD}\" ]; then
+          redis-cli -a ${REDIS_PASSWORD} ping
+        else
+          redis-cli ping
+        fi
+        "
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate
+    container_name: grpc-chat-migrate
+    volumes:
+      - ./migrations:/migrations
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=${DB_SSLMODE}",
+        "up",
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grpc-chat-server
+    env_file:
+      - .env
+    environment:
+      # Override для Docker networking
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
